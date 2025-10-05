@@ -1,10 +1,11 @@
+// main.js — Full version with Leaflet GeoJSON + scaled time-series animation
 const API_URL = "http://127.0.0.1:8000/simulate";
 
 const $ = (s) => document.querySelector(s);
 
 const state = { mode: "manual", map: null, marker: null, lastResult: null };
 
-// Tabs
+// ---------- Tabs ----------
 function setActiveTab(mode) {
   state.mode = mode;
   const btnManual = $("#btnManual");
@@ -23,14 +24,13 @@ function setActiveTab(mode) {
   }
 }
 
-// Mapa Leaflet
+// ---------- Map (Leaflet) ----------
 let resultLayer = null;
 
 function initMap() {
   const mapEl = document.getElementById("map");
   state.map = L.map(mapEl, { zoomControl: true }).setView([38.9, -98.35], 4);
 
-  // Límite EE.UU. continental
   const US_BOUNDS = L.latLngBounds([24.396308, -124.848974], [49.384358, -66.885444]);
   state.map.setMaxBounds(US_BOUNDS);
   state.map.setMinZoom(3);
@@ -42,7 +42,7 @@ function initMap() {
 
   state.map.on("click", async (e) => {
     if (!US_BOUNDS.contains(e.latlng)) {
-      alert("Selecciona un punto dentro de EE. UU. continental.");
+      alert("Select a point within the continental U.S.");
       return;
     }
     const lat = e.latlng.lat;
@@ -73,7 +73,7 @@ function setLatLon(lat, lon) {
 async function reverseGeocode(lat, lon) {
   const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
   try {
-    const r = await fetch(url, { headers: { "Accept-Language": "es" } });
+    const r = await fetch(url, { headers: { "Accept-Language": "en" } });
     if (!r.ok) return "";
     const data = await r.json();
     return data.display_name || "";
@@ -82,27 +82,27 @@ async function reverseGeocode(lat, lon) {
 
 async function geocodeCity(city) {
   const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}`;
-  const r = await fetch(url, { headers: { "Accept-Language": "es" } });
+  const r = await fetch(url, { headers: { "Accept-Language": "en" } });
   if (!r.ok) throw new Error(`Geocoding HTTP ${r.status}`);
   const results = await r.json();
-  if (!Array.isArray(results) || results.length === 0) throw new Error("No se encontró esa ubicación");
+  if (!Array.isArray(results) || results.length === 0) throw new Error("Location not found");
   const lat = parseFloat(results[0].lat);
   const lon = parseFloat(results[0].lon);
   const name = results[0].display_name || city;
   return { lat, lon, name };
 }
 
-// --- Validaciones y payload ---
+// ---------- Validation & payload ----------
 function requireNumber(value, name) {
-  if (value === "" || value === null || value === undefined) throw new Error(`Campo requerido: ${name}`);
+  if (value === "" || value === null || value === undefined) throw new Error(`Required: ${name}`);
   const v = Number(value);
-  if (!isFinite(v)) throw new Error(`Campo inválido: ${name}`);
+  if (!isFinite(v)) throw new Error(`Invalid: ${name}`);
   return v;
 }
 
 function readLatLon() {
-  const lat = requireNumber($("#lat").value, "Latitud");
-  const lon = requireNumber($("#lng").value, "Longitud");
+  const lat = requireNumber($("#lat").value, "Latitude");
+  const lon = requireNumber($("#lng").value, "Longitude");
   return { lat, lon };
 }
 
@@ -110,14 +110,14 @@ function buildPayload() {
   const { lat, lon } = readLatLon();
 
   if (state.mode === "manual") {
-    const diameter_m = requireNumber($("#diam").value, "Diámetro (m)");
-    const velocity_kms = requireNumber($("#vel").value, "Velocidad (km/s)");
-    const density_kg_m3 = requireNumber($("#dens").value || "3000", "Densidad (kg/m³)");
+    const diameter_m = requireNumber($("#diam").value, "Diameter (m)");
+    const velocity_kms = requireNumber($("#vel").value, "Speed (km/s)");
+    const density_kg_m3 = requireNumber($("#dens").value || "3000", "Density (kg/m³)");
 
-    const angle_raw = $("#ang").value; // opcional (default 45° en backend)
+    const angle_raw = $("#ang").value; // optional (default 45° in backend)
     const payload = { lat, lon, diameter_m, velocity_kms, density_kg_m3 };
     if (angle_raw !== "" && angle_raw !== null && angle_raw !== undefined) {
-      const angle_deg = requireNumber(angle_raw, "Ángulo (°)");
+      const angle_deg = requireNumber(angle_raw, "Angle (°)");
       payload.angle_deg = angle_deg;
     }
 
@@ -128,20 +128,20 @@ function buildPayload() {
 
   } else {
     const neo_id = ($("#asteroid_id").value || "").trim();
-    if (!neo_id) throw new Error("Ingresa un ID de asteroide");
-    const density_kg_m3 = requireNumber($("#dens_id").value || "3000", "Densidad (kg/m³)");
+    if (!neo_id) throw new Error("Enter an asteroid ID");
+    const density_kg_m3 = requireNumber($("#dens_id").value || "3000", "Density (kg/m³)");
 
     const angle_raw = $("#ang_id").value;
     const payload = { lat, lon, neo_id, density_kg_m3 };
     if (angle_raw !== "" && angle_raw !== null && angle_raw !== undefined) {
-      const angle_deg = requireNumber(angle_raw, "Ángulo (°)");
+      const angle_deg = requireNumber(angle_raw, "Angle (°)");
       payload.angle_deg = angle_deg;
     }
     return payload;
   }
 }
 
-// --- Simulación y UI ---
+// ---------- Simulation & UI ----------
 async function simulate() {
   try {
     const payload = buildPayload();
@@ -163,15 +163,15 @@ async function simulate() {
     drawResultCanvas(data);
     enableGeoDownload(data);
 
-    drawGeoOnMap(data.geojson); // pinta cráter y anillos sobre el mapa
+    drawGeoOnMap(data.geojson);
 
     if (Array.isArray(data.time_series) && data.time_series.length > 0) {
       const lat = Number($("#lat").value);
       const lon = Number($("#lng").value);
-      playTimeSeries(data.time_series, lat, lon); // animación 0.5s/frame
+      playTimeSeries(data.time_series, lat, lon, data.rings_m); // scaled anim
     }
 
-    $("#summaryHint").textContent = "Simulación lista. Ajusta parámetros y vuelve a ejecutar si lo necesitas.";
+    $("#summaryHint").textContent = "Simulation complete. Adjust parameters and run again if needed.";
     location.hash = "#paso-sim";
   } catch (e) {
     alert(e.message || e);
@@ -186,7 +186,7 @@ function updateKPIs(data) {
 }
 
 function updateDetails(data, payload) {
-  const modeText = state.mode === "manual" ? "Manual" : "ID de asteroide";
+  const modeText = state.mode === "manual" ? "Manual" : "Asteroid ID";
   const metaName = data?.meta?.name;
   const fallbackName = state.mode === "manual" ? (payload.name || "—") : (payload.neo_id || "—");
   const shownName = metaName || fallbackName;
@@ -199,18 +199,18 @@ function updateDetails(data, payload) {
   const crater = data?.kpis?.crater_radius_m ?? "—";
 
   $("#detailsList").innerHTML = `
-    <li><strong>Modo:</strong> ${modeText}</li>
-    <li><strong>Nombre:</strong> ${shownName}</li>
-    <li><strong>Diámetro (m):</strong> ${d}</li>
-    <li><strong>Velocidad (km/s):</strong> ${v}</li>
-    <li><strong>Densidad (kg/m³):</strong> ${rho}</li>
-    <li><strong>Ubicación:</strong> ${loc}</li>
-    <li><strong>Energía (Mt TNT):</strong> ${isFinite(E)?Number(E).toFixed(2):"—"}</li>
-    <li><strong>Cráter (m):</strong> ${isFinite(crater)?Math.round(crater):"—"}</li>
+    <li><strong>Mode:</strong> ${modeText}</li>
+    <li><strong>Name:</strong> ${shownName}</li>
+    <li><strong>Diameter (m):</strong> ${d}</li>
+    <li><strong>Speed (km/s):</strong> ${v}</li>
+    <li><strong>Density (kg/m³):</strong> ${rho}</li>
+    <li><strong>Location:</strong> ${loc}</li>
+    <li><strong>Energy (Mt TNT):</strong> ${isFinite(E)?Number(E).toFixed(2):"—"}</li>
+    <li><strong>Crater (m):</strong> ${isFinite(crater)?Math.round(crater):"—"}</li>
   `;
 }
 
-// --- Canvas (resumen visual) ---
+// ---------- Canvas (summary view) ----------
 function getResultCanvas() {
   const canvas = $("#resultCanvas");
   const box = canvas.parentElement.getBoundingClientRect();
@@ -264,7 +264,7 @@ function legend(ctx, x, y) {
   ctx.save();
   ctx.font = `${12*s}px system-ui, Arial`;
   let yy = y + 4*s;
-  [["Cráter","#d9534f"],["10 psi","#f0ad4e"],["5 psi","#f7e463"],["3 psi","#5bc0de"],["1 psi","#5cb85c"]]
+  [["Crater","#d9534f"],["10 psi","#f0ad4e"],["5 psi","#f7e463"],["3 psi","#5bc0de"],["1 psi","#5cb85c"]]
     .forEach(([label,color])=>{
       ctx.fillStyle=color; ctx.fillRect(x, yy-10*s, 12*s, 12*s);
       ctx.fillStyle="#e5e7eb"; ctx.fillText(label, x+18*s, yy);
@@ -278,8 +278,8 @@ function footer(ctx, crater_m, E_mt) {
   ctx.save();
   ctx.font = `${12*s}px system-ui, Arial`;
   ctx.fillStyle = "#e5e7eb";
-  ctx.fillText(`Energía: ${isFinite(E_mt)?Number(E_mt).toFixed(2):"—"} Mt TNT`, 12*s, ctx.canvas.height - 28*s);
-  ctx.fillText(`Radio cráter: ${isFinite(crater_m)?(crater_m/1000).toFixed(2):"—"} km`, 12*s, ctx.canvas.height - 12*s);
+  ctx.fillText(`Energy: ${isFinite(E_mt)?Number(E_mt).toFixed(2):"—"} Mt TNT`, 12*s, ctx.canvas.height - 28*s);
+  ctx.fillText(`Crater radius: ${isFinite(crater_m)?(crater_m/1000).toFixed(2):"—"} km`, 12*s, ctx.canvas.height - 12*s);
   ctx.restore();
 }
 
@@ -297,7 +297,7 @@ function enableGeoDownload(data) {
   };
 }
 
-// --- GeoJSON → Leaflet ---
+// ---------- GeoJSON → Leaflet ----------
 function colorFor(feature) {
   const t = feature?.properties?.type || "";
   const psi = feature?.properties?.psi || "";
@@ -333,9 +333,9 @@ function drawGeoOnMap(fc) {
     onEachFeature: (feature, layer) => {
       const p = feature.properties || {};
       const txt = [
-        p.type ? `Tipo: ${p.type}` : "",
-        p.psi ? `Anillo: ${p.psi}` : "",
-        p.radius_m ? `Radio (m): ${Math.round(p.radius_m)}` : ""
+        p.type ? `Type: ${p.type}` : "",
+        p.psi ? `Ring: ${p.psi}` : "",
+        p.radius_m ? `Radius (m): ${Math.round(p.radius_m)}` : ""
       ].filter(Boolean).join("<br>");
       if (txt) layer.bindPopup(txt);
     }
@@ -347,7 +347,7 @@ function drawGeoOnMap(fc) {
   } catch (_) {}
 }
 
-// --- Animación temporal (0.5 s por frame) ---
+// ---------- Scaled time-series animation ----------
 let anim = { timer: null, layer: null, circleShock: null, circleCrater: null, i: 0 };
 
 function stopTimeSeries() {
@@ -356,14 +356,30 @@ function stopTimeSeries() {
   anim = { timer: null, layer: null, circleShock: null, circleCrater: null, i: 0 };
 }
 
-/**
- * Reproduce ts en el mapa, actualizando cada 0.5s.
- * ts: [{time_sec, shockwave_radius_km, crater_diameter_km}, ...]
- * centerLat, centerLon: centro del impacto
- */
-function playTimeSeries(ts, centerLat, centerLon) {
+function getOuterRingMeters(rings) {
+  if (!rings) return 0;
+  const vals = [
+    rings["1psi"] || 0,
+    rings["3psi"] || 0,
+    rings["5psi"] || 0,
+    rings["10psi"] || 0,
+  ];
+  return Math.max(...vals);
+}
+
+// ts: [{time_sec, shockwave_radius_km, crater_diameter_km}, ...]
+// centerLat, centerLon: impact center
+// rings: { "1psi": m, "3psi": m, "5psi": m, "10psi": m }
+function playTimeSeries(ts, centerLat, centerLon, rings) {
   stopTimeSeries();
   if (!Array.isArray(ts) || ts.length === 0 || !state.map) return;
+
+  const outer_m = getOuterRingMeters(rings);
+  if (!(outer_m > 0)) return;
+
+  const last = ts[ts.length - 1];
+  const lastShock_m_raw = (Number(last?.shockwave_radius_km) || 0) * 1000.0;
+  const scale = lastShock_m_raw > 0 ? (outer_m / lastShock_m_raw) : 1.0;
 
   anim.layer = L.layerGroup().addTo(state.map);
   const center = L.latLng(centerLat, centerLon);
@@ -382,34 +398,42 @@ function playTimeSeries(ts, centerLat, centerLon) {
     fillOpacity: 0.08
   }).addTo(anim.layer);
 
-  try { state.map.flyTo(center, Math.max(state.map.getZoom(), 8), { duration: 0.6 }); } catch(_) {}
+  try {
+    const finalBounds = L.circle(center, { radius: outer_m }).getBounds();
+    state.map.fitBounds(finalBounds, { padding: [30, 30] });
+  } catch (_) {}
 
-  anim.i = 0;
+  const TOTAL_MS = 8000; // total animation duration
+  const stepMs = Math.max(16, Math.round(TOTAL_MS / ts.length));
+
+  let i = 0;
   anim.timer = setInterval(() => {
-    if (anim.i >= ts.length) { stopTimeSeries(); return; }
-    const frame = ts[anim.i];
+    if (i >= ts.length) { stopTimeSeries(); return; }
 
-    const shock_m  = (Number(frame.shockwave_radius_km) || 0) * 1000.0;
-    const crater_m = ((Number(frame.crater_diameter_km) || 0) * 1000.0) / 2.0;
+    const frame = ts[i];
+    const shock_m_raw  = (Number(frame.shockwave_radius_km) || 0) * 1000.0;
+    const crater_m_raw = ((Number(frame.crater_diameter_km) || 0) * 1000.0) / 2.0;
+
+    const shock_m  = Math.min(shock_m_raw * scale, outer_m);
+    const crater_m = Math.min(crater_m_raw, outer_m);
 
     if (shock_m > 0) anim.circleShock.setRadius(shock_m);
     if (crater_m > 0) anim.circleCrater.setRadius(crater_m);
 
-    const hint = `t=${frame.time_sec}s • onda=${(shock_m/1000).toFixed(1)} km • cráter=${(crater_m/1000).toFixed(2)} km`;
+    const hint = `t=${frame.time_sec}s • shock=${(shock_m/1000).toFixed(1)} km • crater=${(crater_m/1000).toFixed(2)} km`;
     const el = document.getElementById("summaryHint");
     if (el) el.textContent = hint;
 
-    anim.i += 1;
-  }, 500);
+    i += 1;
+  }, stepMs);
 }
 
-// --- Bind UI ---
+// ---------- Bind UI ----------
 function bindUI() {
   $("#btnManual")?.addEventListener("click", () => setActiveTab("manual"));
   $("#btnId")?.addEventListener("click", () => setActiveTab("id"));
   $("#toMap")?.addEventListener("click", (e) => { e.preventDefault(); location.hash = "#paso-mapa"; });
   $("#toSim")?.addEventListener("click", (e) => { e.preventDefault(); simulate(); });
-  $("#btnStopAnim")?.addEventListener("click", () => stopTimeSeries());
 
   $("#go")?.addEventListener("click", async () => {
     const q = ($("#city")?.value || "").trim();
