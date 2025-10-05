@@ -4,6 +4,7 @@ const $ = (s) => document.querySelector(s);
 
 const state = { mode: "manual", map: null, marker: null, lastResult: null };
 
+// Tabs
 function setActiveTab(mode) {
   state.mode = mode;
   const btnManual = $("#btnManual");
@@ -22,15 +23,15 @@ function setActiveTab(mode) {
   }
 }
 
+// Mapa Leaflet
+let resultLayer = null;
+
 function initMap() {
   const mapEl = document.getElementById("map");
   state.map = L.map(mapEl, { zoomControl: true }).setView([38.9, -98.35], 4);
 
-  // Límite EE. UU. continental (CONUS)
-  const US_BOUNDS = L.latLngBounds(
-    [24.396308, -124.848974],  // SW
-    [49.384358,  -66.885444]   // NE
-  );
+  // Límite EE.UU. continental
+  const US_BOUNDS = L.latLngBounds([24.396308, -124.848974], [49.384358, -66.885444]);
   state.map.setMaxBounds(US_BOUNDS);
   state.map.setMinZoom(3);
   state.map.on("drag", () => { state.map.panInsideBounds(US_BOUNDS, { animate: true }); });
@@ -91,6 +92,7 @@ async function geocodeCity(city) {
   return { lat, lon, name };
 }
 
+// --- Validaciones y payload ---
 function requireNumber(value, name) {
   if (value === "" || value === null || value === undefined) throw new Error(`Campo requerido: ${name}`);
   const v = Number(value);
@@ -112,15 +114,13 @@ function buildPayload() {
     const velocity_kms = requireNumber($("#vel").value, "Velocidad (km/s)");
     const density_kg_m3 = requireNumber($("#dens").value || "3000", "Densidad (kg/m³)");
 
-    // Ángulo opcional: si no hay valor, el backend usará 45°
-    const angle_raw = $("#ang").value;
+    const angle_raw = $("#ang").value; // opcional (default 45° en backend)
     const payload = { lat, lon, diameter_m, velocity_kms, density_kg_m3 };
     if (angle_raw !== "" && angle_raw !== null && angle_raw !== undefined) {
       const angle_deg = requireNumber(angle_raw, "Ángulo (°)");
       payload.angle_deg = angle_deg;
     }
 
-    // Nombre/ID opcional en modo manual
     const name_manual = ($("#name_manual")?.value || "").trim();
     if (name_manual) payload.name = name_manual;
 
@@ -131,7 +131,6 @@ function buildPayload() {
     if (!neo_id) throw new Error("Ingresa un ID de asteroide");
     const density_kg_m3 = requireNumber($("#dens_id").value || "3000", "Densidad (kg/m³)");
 
-    // Ángulo opcional en modo ID
     const angle_raw = $("#ang_id").value;
     const payload = { lat, lon, neo_id, density_kg_m3 };
     if (angle_raw !== "" && angle_raw !== null && angle_raw !== undefined) {
@@ -142,6 +141,7 @@ function buildPayload() {
   }
 }
 
+// --- Simulación y UI ---
 async function simulate() {
   try {
     const payload = buildPayload();
@@ -162,6 +162,14 @@ async function simulate() {
     updateDetails(data, payload);
     drawResultCanvas(data);
     enableGeoDownload(data);
+
+    drawGeoOnMap(data.geojson); // pinta cráter y anillos sobre el mapa
+
+    if (Array.isArray(data.time_series) && data.time_series.length > 0) {
+      const lat = Number($("#lat").value);
+      const lon = Number($("#lng").value);
+      playTimeSeries(data.time_series, lat, lon); // animación 0.5s/frame
+    }
 
     $("#summaryHint").textContent = "Simulación lista. Ajusta parámetros y vuelve a ejecutar si lo necesitas.";
     location.hash = "#paso-sim";
@@ -202,6 +210,7 @@ function updateDetails(data, payload) {
   `;
 }
 
+// --- Canvas (resumen visual) ---
 function getResultCanvas() {
   const canvas = $("#resultCanvas");
   const box = canvas.parentElement.getBoundingClientRect();
@@ -288,11 +297,119 @@ function enableGeoDownload(data) {
   };
 }
 
+// --- GeoJSON → Leaflet ---
+function colorFor(feature) {
+  const t = feature?.properties?.type || "";
+  const psi = feature?.properties?.psi || "";
+  if (t === "crater") return "#d9534f";
+  if (t === "ring") {
+    if (psi === "10psi") return "#f0ad4e";
+    if (psi === "5psi")  return "#f7e463";
+    if (psi === "3psi")  return "#5bc0de";
+    if (psi === "1psi")  return "#5cb85c";
+  }
+  return "#888";
+}
+
+function styleFeature(feature) {
+  return {
+    color: colorFor(feature),
+    weight: feature?.properties?.type === "crater" ? 3 : 2,
+    opacity: 1,
+    fillOpacity: feature?.properties?.type === "crater" ? 0.08 : 0.05
+  };
+}
+
+function drawGeoOnMap(fc) {
+  if (!state.map) return;
+  if (resultLayer) {
+    state.map.removeLayer(resultLayer);
+    resultLayer = null;
+  }
+  if (!fc) return;
+
+  resultLayer = L.geoJSON(fc, {
+    style: styleFeature,
+    onEachFeature: (feature, layer) => {
+      const p = feature.properties || {};
+      const txt = [
+        p.type ? `Tipo: ${p.type}` : "",
+        p.psi ? `Anillo: ${p.psi}` : "",
+        p.radius_m ? `Radio (m): ${Math.round(p.radius_m)}` : ""
+      ].filter(Boolean).join("<br>");
+      if (txt) layer.bindPopup(txt);
+    }
+  }).addTo(state.map);
+
+  try {
+    const b = resultLayer.getBounds();
+    if (b.isValid()) state.map.fitBounds(b, { padding: [30, 30] });
+  } catch (_) {}
+}
+
+// --- Animación temporal (0.5 s por frame) ---
+let anim = { timer: null, layer: null, circleShock: null, circleCrater: null, i: 0 };
+
+function stopTimeSeries() {
+  if (anim.timer) { clearInterval(anim.timer); anim.timer = null; }
+  if (anim.layer && state.map) { state.map.removeLayer(anim.layer); }
+  anim = { timer: null, layer: null, circleShock: null, circleCrater: null, i: 0 };
+}
+
+/**
+ * Reproduce ts en el mapa, actualizando cada 0.5s.
+ * ts: [{time_sec, shockwave_radius_km, crater_diameter_km}, ...]
+ * centerLat, centerLon: centro del impacto
+ */
+function playTimeSeries(ts, centerLat, centerLon) {
+  stopTimeSeries();
+  if (!Array.isArray(ts) || ts.length === 0 || !state.map) return;
+
+  anim.layer = L.layerGroup().addTo(state.map);
+  const center = L.latLng(centerLat, centerLon);
+
+  anim.circleShock = L.circle(center, {
+    radius: 1,
+    color: "#5bc0de",
+    weight: 2,
+    fillOpacity: 0.05
+  }).addTo(anim.layer);
+
+  anim.circleCrater = L.circle(center, {
+    radius: 1,
+    color: "#d9534f",
+    weight: 3,
+    fillOpacity: 0.08
+  }).addTo(anim.layer);
+
+  try { state.map.flyTo(center, Math.max(state.map.getZoom(), 8), { duration: 0.6 }); } catch(_) {}
+
+  anim.i = 0;
+  anim.timer = setInterval(() => {
+    if (anim.i >= ts.length) { stopTimeSeries(); return; }
+    const frame = ts[anim.i];
+
+    const shock_m  = (Number(frame.shockwave_radius_km) || 0) * 1000.0;
+    const crater_m = ((Number(frame.crater_diameter_km) || 0) * 1000.0) / 2.0;
+
+    if (shock_m > 0) anim.circleShock.setRadius(shock_m);
+    if (crater_m > 0) anim.circleCrater.setRadius(crater_m);
+
+    const hint = `t=${frame.time_sec}s • onda=${(shock_m/1000).toFixed(1)} km • cráter=${(crater_m/1000).toFixed(2)} km`;
+    const el = document.getElementById("summaryHint");
+    if (el) el.textContent = hint;
+
+    anim.i += 1;
+  }, 500);
+}
+
+// --- Bind UI ---
 function bindUI() {
   $("#btnManual")?.addEventListener("click", () => setActiveTab("manual"));
   $("#btnId")?.addEventListener("click", () => setActiveTab("id"));
   $("#toMap")?.addEventListener("click", (e) => { e.preventDefault(); location.hash = "#paso-mapa"; });
   $("#toSim")?.addEventListener("click", (e) => { e.preventDefault(); simulate(); });
+  $("#btnStopAnim")?.addEventListener("click", () => stopTimeSeries());
 
   $("#go")?.addEventListener("click", async () => {
     const q = ($("#city")?.value || "").trim();
@@ -328,7 +445,7 @@ function bindUI() {
   });
 
   setActiveTab("manual");
-  initMap(); 
+  initMap();
 }
 
 window.addEventListener("DOMContentLoaded", bindUI);

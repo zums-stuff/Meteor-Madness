@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es" data-theme="dark">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,41 +13,41 @@
     <div class="container row">
       <div class="logo"><span class="dot"></span><span>Meteor Madness</span></div>
       <div class="spacer"></div>
-      <a class="btn small primary" href="#paso-entrada">Comenzar</a>
+      <a class="btn small primary" href="#paso-entrada">Start</a>
     </div>
   </header>
 
   <main class="container">
     <section id="paso-entrada" class="section card" aria-labelledby="entradaTitle">
-      <h2 id="entradaTitle">1) ¿Cómo quieres ingresar los datos?</h2>
+      <h2 id="entradaTitle">1) How do you want to enter data?</h2>
 
-      <div class="row" role="tablist" aria-label="Modo de entrada">
-        <button id="btnManual" class="btn toggle active" role="tab" aria-selected="true" aria-controls="panel-manual">Ingresar manualmente</button>
-        <button id="btnId" class="btn toggle" role="tab" aria-selected="false" aria-controls="panel-id">Ingresar ID de asteroide</button>
+      <div class="row" role="tablist" aria-label="Input mode">
+        <button id="btnManual" class="btn toggle active" role="tab" aria-selected="true" aria-controls="panel-manual">Enter manually</button>
+        <button id="btnId" class="btn toggle" role="tab" aria-selected="false" aria-controls="panel-id">Enter asteroid ID</button>
       </div>
 
       <div class="grid cols-2" style="margin-top:14px">
         <div id="panel-manual" class="panel card" role="tabpanel" aria-labelledby="btnManual">
           <div class="grid" style="gap:12px">
             <div class="field">
-              <label for="name_manual">Nombre/ID (opcional)</label>
-              <input class="input" id="name_manual" type="text" placeholder="p.ej. Impactor-2025" />
+              <label for="name_manual">Name/ID (optional)</label>
+              <input class="input" id="name_manual" type="text" placeholder="e.g., Impactor-2025" />
             </div>
             <div class="field">
-              <label for="ang">Ángulo (°), (Opcional)</label>
-              <input class="input" id="ang" name="angle_deg" type="number" placeholder="p.ej. 45" />
+              <label for="ang">Angle (°)</label>
+              <input class="input" id="ang" name="angle_deg" type="number" placeholder="e.g., 45" />
             </div>
             <div class="field">
-              <label for="diam">Diámetro (m)</label>
-              <input class="input" id="diam" name="diameter_m" type="number" placeholder="p.ej. 140" />
+              <label for="diam">Diameter (m)</label>
+              <input class="input" id="diam" name="diameter_m" type="number" placeholder="e.g., 140" />
             </div>
             <div class="field">
-              <label for="vel">Velocidad (km/s)</label>
-              <input class="input" id="vel" name="speed_kms" type="number" step="0.1" placeholder="p.ej. 19" />
+              <label for="vel">Speed (km/s)</label>
+              <input class="input" id="vel" name="speed_kms" type="number" step="0.1" placeholder="e.g., 19" />
             </div>
             <div class="field">
-              <label for="dens">Densidad (kg/m³)</label>
-              <input class="input" id="dens" name="density_kg_m3" type="number" step="10" placeholder="p.ej. 3000" />
+              <label for="dens">Density (kg/m³)</label>
+              <input class="input" id="dens" name="density_kg_m3" type="number" step="10" placeholder="e.g., 3000" />
             </div>
           </div>
         </div>
@@ -55,102 +55,102 @@
         <div id="panel-id" class="panel card" role="tabpanel" aria-labelledby="btnId" hidden>
           <div class="grid" style="gap:12px">
             <div class="field">
-              <label for="asteroid_id">ID del asteroide (NEO/NASA)</label>
-              <input class="input" id="asteroid_id" name="asteroid_id" type="text" placeholder="p.ej. 3542519 o 2024 AB1" />
+              <label for="asteroid_id">Asteroid ID (NEO/NASA)</label>
+              <input class="input" id="asteroid_id" name="asteroid_id" type="text" placeholder="e.g., 3542519 or 2024 AB1" />
             </div>
             <div class="field">
-              <label for="dens_id">Densidad (kg/m³)</label>
-              <input class="input" id="dens_id" name="density_kg_m3" type="number" step="10" placeholder="p.ej. 3000" />
+              <label for="dens_id">Density (kg/m³)</label>
+              <input class="input" id="dens_id" name="density_kg_m3" type="number" step="10" placeholder="e.g., 3000" />
             </div>
             <div class="field">
-              <label for="ang_id">Ángulo (°)</label>
-              <input class="input" id="ang_id" name="angle_deg" type="number" placeholder="p.ej. 45" />
+              <label for="ang_id">Angle (°)</label>
+              <input class="input" id="ang_id" name="angle_deg" type="number" placeholder="e.g., 45" />
             </div>
           </div>
         </div>
 
         <aside class="card">
-          <strong>Flujo</strong>
+          <strong>Flow</strong>
           <ol>
-            <li>Elige modo de entrada</li>
-            <li>Define zona de impacto</li>
-            <li>Presiona <em>Simular</em></li>
+            <li>Choose input mode</li>
+            <li>Set impact location</li>
+            <li>Press <em>Simulate</em></li>
           </ol>
-          <a class="btn" href="#paso-mapa" id="toMap">Continuar a mapa</a>
+          <a class="btn" href="#paso-mapa" id="toMap">Continue to map</a>
         </aside>
       </div>
     </section>
 
     <section id="paso-mapa" class="section card" aria-labelledby="mapTitle">
-      <h2 id="mapTitle">2) Selecciona el punto de impacto</h2>
-      <p class="hint">Haz clic en el mapa para poner un marcador. También puedes buscar una ciudad y/o editar Lat/Lon.</p>
+      <h2 id="mapTitle">2) Select the impact point</h2>
+      <p class="hint">Click on the map to place a marker. You can also search a city and/or edit Lat/Lon.</p>
 
       <div class="mapbox" id="mapbox">
         <div id="map"></div>
         <div id="search-box" class="map-search">
-          <input type="text" id="city" placeholder="Escribe una ciudad..." />
-          <button id="go">Buscar</button>
+          <input type="text" id="city" placeholder="Type a city..." />
+          <button id="go">Search</button>
         </div>
       </div>
 
       <div class="grid cols-2" style="margin-top:12px">
         <div class="field">
-          <label for="lat">Latitud</label>
+          <label for="lat">Latitude</label>
           <input class="input" id="lat" name="lat" type="number" step="0.0001" placeholder="—" />
         </div>
         <div class="field">
-          <label for="lng">Longitud</label>
+          <label for="lng">Longitude</label>
           <input class="input" id="lng" name="lng" type="number" step="0.0001" placeholder="—" />
         </div>
       </div>
 
       <div class="row" style="margin-top:10px">
-        <a class="btn" href="#paso-entrada">Volver</a>
-        <a class="btn primary" href="#paso-sim" id="toSim">Empezar simulación</a>
+        <a class="btn" href="#paso-entrada">Back</a>
+        <a class="btn primary" href="#paso-sim" id="toSim">Run simulation</a>
       </div>
     </section>
 
     <section id="paso-sim" class="section layout" aria-labelledby="simTitle">
       <div class="card">
-        <h2 id="simTitle">3) Resultados de la simulación</h2>
+        <h2 id="simTitle">3) Simulation results</h2>
         <div class="grid" style="gap:12px">
           <div class="kpi">
-            <div class="tile"><strong>Energía</strong><div><span id="kpiEnergy">—</span> Mt TNT</div></div>
-            <div class="tile"><strong>Radio cráter</strong><div><span id="kpiCrater">—</span> m</div></div>
+            <div class="tile"><strong>Energy</strong><div><span id="kpiEnergy">—</span> Mt TNT</div></div>
+            <div class="tile"><strong>Crater radius</strong><div><span id="kpiCrater">—</span> m</div></div>
           </div>
         </div>
         <div class="card" style="margin-top:14px">
-          <strong>Mapa de resultados</strong>
+          <strong>Results map</strong>
           <div class="mapbox" style="margin-top:8px">
             <canvas id="resultCanvas"></canvas>
           </div>
         </div>
       </div>
       <aside class="results">
-        <div class="card"><strong>Resumen</strong><p class="hint" id="summaryHint">—</p></div>
-        <div class="scroll" aria-label="Datos del impacto (scrolleable)">
-          <h3>Detalle del impacto</h3>
+        <div class="card"><strong>Summary</strong><p class="hint" id="summaryHint">—</p></div>
+        <div class="scroll" aria-label="Impact data (scrollable)">
+          <h3>Impact details</h3>
           <ul id="detailsList" style="line-height:1.7">
-            <li><strong>Modo:</strong> —</li>
-            <li><strong>Nombre:</strong> —</li>
-            <li><strong>Diámetro (m):</strong> —</li>
-            <li><strong>Velocidad (km/s):</strong> —</li>
-            <li><strong>Densidad (kg/m³):</strong> —</li>
-            <li><strong>Ubicación:</strong> —</li>
-            <li><strong>Energía (Mt TNT):</strong> —</li>
-            <li><strong>Cráter (m):</strong> —</li>
+            <li><strong>Mode:</strong> —</li>
+            <li><strong>Name:</strong> —</li>
+            <li><strong>Diameter (m):</strong> —</li>
+            <li><strong>Speed (km/s):</strong> —</li>
+            <li><strong>Density (kg/m³):</strong> —</li>
+            <li><strong>Location:</strong> —</li>
+            <li><strong>Energy (Mt TNT):</strong> —</li>
+            <li><strong>Crater (m):</strong> —</li>
           </ul>
-          <h3>Notas</h3>
+          <h3>Notes</h3>
         </div>
         <div class="row">
-          <a class="btn" href="#paso-entrada">Modificar parámetros</a>
-          <button class="btn" id="btnDownloadGeo" disabled>Descargar GeoJSON</button>
+          <a class="btn" href="#paso-entrada">Modify parameters</a>
+          <button class="btn" id="btnDownloadGeo" disabled>Download GeoJSON</button>
         </div>
       </aside>
     </section>
   </main>
 
-  <footer class="container"><small class="hint">© 2025 Meteor Madness • Frontend estático. Conecta a tu backend Flask.</small></footer>
+  <footer class="container"><small class="hint">© 2025 Meteor Madness • Static frontend. Connect to your Flask backend.</small></footer>
 
   <script src="main.js" defer></script>
 </body>
