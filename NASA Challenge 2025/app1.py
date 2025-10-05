@@ -148,14 +148,14 @@ def simulate():
             shockwave_radius = sound_speed_kps * t
             
             #tamaño del cráter (exponencial, rápido al inicio)
-            crater_diameter = crater_radius_m * 2 * (1 - np.exp(-t / 8.0))
+            crater_diameter = crater * 2 * (1 - np.exp(-t / 8.0))
             
             time_series.append({
                 "time_sec": t,
                 "shockwave_radius_km": shockwave_radius,
                 "crater_diameter_km": crater_diameter
             })
-
+ 
 
         return jsonify({
             "meta": {"units": "SI", "source": "team-computed", "name": meta_name},
