@@ -11,18 +11,12 @@ from urllib3.util.retry import Retry
 from geojson_builder import feature_collection_basic
 from validators import validate_sim_payload
 
-# ---------------------------
-# Config
-# ---------------------------
 load_dotenv()
 
 API_KEY = os.getenv("NASA_API_KEY", "")
 PORT = int(os.getenv("PORT", "8000"))
 EPQS_URL = "https://epqs.nationalmap.gov/v1/json"
 
-# ---------------------------
-# HTTP session with retries
-# ---------------------------
 def _make_session():
     s = requests.Session()
     retries = Retry(
@@ -39,17 +33,10 @@ def _make_session():
 
 SESSION = _make_session()
 
-# ---------------------------
-# Flask
-# ---------------------------
 app = Flask(__name__)
 CORS(app)
 
-# ---------------------------
-# Helpers
-# ---------------------------
 def us_elevation_m_or_none(lat: float, lon: float):
-    """USGS Elevation Point Query Service (EPSG:4326). None si fuera de cobertura/agua/error."""
     try:
         params = {"x": lon, "y": lat, "units": "Meters", "wkid": 4326}
         r = SESSION.get(EPQS_URL, params=params, timeout=8)
@@ -95,23 +82,18 @@ def joules_to_megatons(E_J):
 
 
 def crater_radius_m(E_Mt, angle_deg):
-    # Modelo simple (calibrado al hackathon): escalado por energía y ángulo
-    k = 120.0
     th = math.radians(angle_deg)
-    return k * (E_Mt ** 0.25) * (math.sin(th) ** (1.0 / 3.0))
+    D = 600.0 * (E_Mt ** 0.3) * (math.sin(th) ** (1.0 / 3.0))
+    return 0.5 * D
 
 
 def blast_rings_m(E_Mt, angle_deg):
-    # Radios aproximados (m) para isóbaras de 10/5/3/1 psi
     th = math.radians(angle_deg)
-    s = math.sin(th)
-    base = E_Mt ** (1.0 / 3.0)
-    coeff = {"10psi": 0.55 * 900, "5psi": 0.85 * 900, "3psi": 1.1 * 900, "1psi": 1.6 * 900}
-    return {k: c * base * s for k, c in coeff.items()}
+    s = math.sin(th) ** (1.0 / 3.0)
+    W_kt = max(E_Mt, 0.0) * 1000.0
+    c = {"10psi": 1100.0, "5psi": 1800.0, "3psi": 2700.0, "1psi": 4700.0}
+    return {k: v * (W_kt ** (1.0 / 3.0)) * s for k, v in c.items()}
 
-# ---------------------------
-# Data providers: NeoWs (NASA), SBDB+CAD (JPL) fallback
-# ---------------------------
 def fetch_neows(neo_id):
     if not API_KEY:
         raise RuntimeError("NASA_API_KEY no configurada")
@@ -122,12 +104,10 @@ def fetch_neows(neo_id):
 
 
 def params_from_neows(data, density_kg_m3):
-    # diámetro promedio (m)
     dmin = float(data["estimated_diameter"]["meters"]["estimated_diameter_min"])
     dmax = float(data["estimated_diameter"]["meters"]["estimated_diameter_max"])
     diameter_m = (dmin + dmax) / 2.0
 
-    # velocidad (km/s): toma primer acercamiento si existe; si no, None
     velocity_kms = None
     ca = data.get("close_approach_data", [])
     if ca:
@@ -147,7 +127,6 @@ def fetch_sbdb(ident):
 
 
 def fetch_cad_velocity_kms(ident):
-    # Close-Approach Data: v_rel en km/s
     url = "https://ssd-api.jpl.nasa.gov/cad.api"
     r = SESSION.get(url, params={"sstr": str(ident), "limit": 1}, timeout=8)
     r.raise_for_status()
@@ -156,13 +135,12 @@ def fetch_cad_velocity_kms(ident):
     if not arr:
         return None
     try:
-        return float(arr[0][7])  # v_rel km/s
+        return float(arr[0][7])
     except Exception:
         return None
 
 
 def params_from_sbdb_and_cad(sbdb, density_kg_m3, ident):
-    # diámetro (m) desde SBDB si está disponible (SBDB usualmente da km)
     diameter_m = None
     try:
         phys = sbdb.get("phys_par") or {}
@@ -172,20 +150,15 @@ def params_from_sbdb_and_cad(sbdb, density_kg_m3, ident):
     except Exception:
         diameter_m = None
 
-    # velocidad (km/s) desde CAD si hay
     velocity_kms = fetch_cad_velocity_kms(ident)
 
     if diameter_m is None:
         raise ValueError("SBDB no tiene diámetro para este objeto")
     if velocity_kms is None:
-        # default razonable
         velocity_kms = 19.0
 
     return diameter_m, float(density_kg_m3), float(velocity_kms)
 
-# ---------------------------
-# Endpoints
-# ---------------------------
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
@@ -209,25 +182,21 @@ def simulate():
         angle_deg = float(payload.get("angle_deg", 45.0))
         client_name = payload.get("name")
 
-        # --- Obtener parámetros (manual vs NEO ID con fallback) ---
         if "neo_id" in payload:
             density_kg_m3 = float(payload["density_kg_m3"])
             neo_id = str(payload["neo_id"])
             meta_name = client_name
 
             try:
-                # 1) Intenta NeoWs
                 data = fetch_neows(neo_id)
                 diameter_m, density_kg_m3, velocity_kms = params_from_neows(data, density_kg_m3)
                 if not meta_name:
                     meta_name = data.get("name")
-                # Si NeoWs no trae velocidad, intenta CAD
                 if velocity_kms is None:
                     v_fallback = fetch_cad_velocity_kms(neo_id)
                     velocity_kms = v_fallback if v_fallback is not None else 19.0
 
             except (requests.Timeout, requests.exceptions.ReadTimeout):
-                # 2) Timeout: SBDB + CAD
                 try:
                     sbdb = fetch_sbdb(neo_id)
                     diameter_m, density_kg_m3, velocity_kms = params_from_sbdb_and_cad(sbdb, density_kg_m3, neo_id)
@@ -239,7 +208,6 @@ def simulate():
                 code = he.response.status_code if he.response is not None else 502
                 return jsonify({"error": f"NeoWs HTTP {code}. Try Manual mode or retry."}), 502
             except Exception:
-                # 3) Otros errores: intenta SBDB + CAD
                 try:
                     sbdb = fetch_sbdb(neo_id)
                     diameter_m, density_kg_m3, velocity_kms = params_from_sbdb_and_cad(sbdb, density_kg_m3, neo_id)
@@ -249,13 +217,11 @@ def simulate():
                     return jsonify({"error": f"Could not fetch NEO data ({e2}). Use Manual mode."}), 502
 
         else:
-            # Manual
             diameter_m = float(payload["diameter_m"])
             density_kg_m3 = float(payload["density_kg_m3"])
             velocity_kms = float(payload["velocity_kms"])
             meta_name = client_name
 
-        # --- Física / KPIs ---
         v_ms = velocity_kms * 1000.0
         m_kg = mass_from_diameter(diameter_m, density_kg_m3)
         E_J = energy_joules(m_kg, v_ms)
@@ -263,16 +229,13 @@ def simulate():
         crater = crater_radius_m(E_Mt, angle_deg)
         rings = blast_rings_m(E_Mt, angle_deg)
 
-        # --- GeoJSON footprint ---
         fc = feature_collection_basic(lat, lon, crater, rings, steps=128)
 
-        # --- Serie temporal (simple) ---
         time_series = []
-        # Usaremos la serie para animación y la escalaremos en front; aquí basta un crecimiento suave
-        sound_speed_kps = 0.343  # ~343 m/s
+        sound_speed_kps = 0.343
         for t in range(0, 91):
-            shockwave_radius = sound_speed_kps * t  # km (raw, el front reescala al anillo exterior)
-            crater_diameter = crater * 2 * (1 - np.exp(-t / 8.0))  # m
+            shockwave_radius = sound_speed_kps * t
+            crater_diameter = crater * 2 * (1 - np.exp(-t / 8.0))
             time_series.append({
                 "time_sec": t,
                 "shockwave_radius_km": shockwave_radius,

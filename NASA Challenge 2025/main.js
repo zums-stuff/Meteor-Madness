@@ -1,11 +1,9 @@
-// main.js — Frontend controller for Meteor Madness
 const API_URL = "http://127.0.0.1:8000/simulate";
 
 const $ = (s) => document.querySelector(s);
 
 const state = { mode: "manual", map: null, marker: null, lastResult: null };
 
-// ---------- Tabs ----------
 function setActiveTab(mode) {
   state.mode = mode;
   const btnManual = $("#btnManual");
@@ -393,7 +391,7 @@ function playTimeSeries(ts, centerLat, centerLon, rings) {
     state.map.fitBounds(finalBounds, { padding: [30, 30] });
   } catch (_) {}
 
-  const TOTAL_MS = 8000; // total animation duration
+  const TOTAL_MS = 8000; 
   const stepMs = Math.max(16, Math.round(TOTAL_MS / ts.length));
 
   let i = 0;
@@ -418,13 +416,12 @@ function playTimeSeries(ts, centerLat, centerLon, rings) {
   }, stepMs);
 }
 
-// ---------- Bind UI ----------
 function bindUI() {
   $("#btnManual")?.addEventListener("click", () => setActiveTab("manual"));
   $("#btnId")?.addEventListener("click", () => setActiveTab("id"));
   $("#toMap")?.addEventListener("click", (e) => { e.preventDefault(); location.hash = "#paso-mapa"; });
   $("#toSim")?.addEventListener("click", (e) => {
-    e.preventDefault();   // stay on the map (no scroll to #paso-sim)
+    e.preventDefault();
     simulate();
   });
 
