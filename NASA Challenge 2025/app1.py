@@ -6,6 +6,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from geojson_builder import feature_collection_basic
 from validators import validate_sim_payload
+import numpy as np
 
 load_dotenv()
 
@@ -139,11 +140,29 @@ def simulate():
         rings = blast_rings_m(E_Mt, angle_deg)
         fc = feature_collection_basic(lat, lon, crater, rings, steps=128)
 
+        time_series = []
+        sound_speed_kps = 0.343
+
+        for t in range(0, 91):
+            #crecimiento de la onda de choque (lineal)
+            shockwave_radius = sound_speed_kps * t
+            
+            #tamaño del cráter (exponencial, rápido al inicio)
+            crater_diameter = crater_radius_m * 2 * (1 - np.exp(-t / 8.0))
+            
+            time_series.append({
+                "time_sec": t,
+                "shockwave_radius_km": shockwave_radius,
+                "crater_diameter_km": crater_diameter
+            })
+
+
         return jsonify({
             "meta": {"units": "SI", "source": "team-computed", "name": meta_name},
             "kpis": {"energy_mt": round(E_Mt, 4), "crater_radius_m": crater},
             "rings_m": rings,
-            "geojson": fc
+            "geojson": fc,
+            "time_series": time_series
         })
 
     except ValueError as ve:
