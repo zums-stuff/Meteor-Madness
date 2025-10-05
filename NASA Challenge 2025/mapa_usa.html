@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meteor Impact Location Selector</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    rel="stylesheet"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    body, html { height: 100%; margin: 0; }
+    #map { height: 100vh; width: 100%; }
+
+    /* 🔴 estilo del marcador tipo Google Maps */
+    .red-pin {
+      background-color: red;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 6px rgba(0,0,0,0.5);
+    }
+
+    /* 📍 caja de búsqueda */
+    #search-box {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      padding: 10px;
+      z-index: 1000;
+      width: 320px;
+    }
+
+    #search-box input {
+      width: 80%;
+      padding: 5px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #search-box button {
+      padding: 5px 10px;
+      background-color: #e63946;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #search-box button:hover {
+      background-color: #c62b3f;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 🔎 Cuadro de búsqueda -->
+  <div id="search-box">
+    <input type="text" id="city" placeholder="Escribe una ciudad...">
+    <button id="go">Buscar</button>
+  </div>
+
+  <div id="map"></div>
+
+  <script>
+    // Crear mapa centrado en USA
+    const map = L.map('map').setView([38.9, -77.04], 4);
+
+    // Cargar base OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker;
+
+    // 🔍 Función para buscar ciudad por nombre
+    async function geocode(city) {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}`;
+      const response = await fetch(url);
+      const results = await response.json();
+
+      if (results.length > 0) {
+        const lat = results[0].lat;
+        const lon = results[0].lon;
+        const displayName = results[0].display_name;
+        placeMarker(lat, lon, displayName);
+      } else {
+        alert("No se encontró esa ubicación 😔");
+      }
+    }
+
+    // 📍 Función para colocar marcador
+    function placeMarker(lat, lon, name) {
+      if (marker) map.removeLayer(marker);
+
+      const icon = L.divIcon({ className: 'red-pin' });
+
+      marker = L.marker([lat, lon], { icon: icon }).addTo(map);
+      marker.bindPopup(`<b>${name}</b><br>Lat: ${lat}<br>Lon: ${lon}`).openPopup();
+
+      map.flyTo([lat, lon], 8, { duration: 1.5 });
+    }
+
+    // 👆 Cuando el usuario hace click en el mapa
+    map.on('click', async (e) => {
+      const lat = e.latlng.lat;
+      const lon = e.latlng.lng;
+
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const name = data.display_name || "Ubicación desconocida";
+      placeMarker(lat, lon, name);
+    });
+
+    // 🎯 Evento del botón de búsqueda
+    document.getElementById('go').addEventListener('click', () => {
+      const city = document.getElementById('city').value;
+      if (city) geocode(city);
+    });
+
+    // ⌨️ Enter también busca
+    document.getElementById('city').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const city = document.getElementById('city').value;
+        if (city) geocode(city);
+      }
+    });
+  </script>
+</body>
+</html>
