@@ -1,4 +1,4 @@
-// main.js — Full version with Leaflet GeoJSON + scaled time-series animation
+// main.js — Frontend controller for Meteor Madness
 const API_URL = "http://127.0.0.1:8000/simulate";
 
 const $ = (s) => document.querySelector(s);
@@ -24,7 +24,6 @@ function setActiveTab(mode) {
   }
 }
 
-// ---------- Map (Leaflet) ----------
 let resultLayer = null;
 
 function initMap() {
@@ -92,7 +91,6 @@ async function geocodeCity(city) {
   return { lat, lon, name };
 }
 
-// ---------- Validation & payload ----------
 function requireNumber(value, name) {
   if (value === "" || value === null || value === undefined) throw new Error(`Required: ${name}`);
   const v = Number(value);
@@ -114,7 +112,7 @@ function buildPayload() {
     const velocity_kms = requireNumber($("#vel").value, "Speed (km/s)");
     const density_kg_m3 = requireNumber($("#dens").value || "3000", "Density (kg/m³)");
 
-    const angle_raw = $("#ang").value; // optional (default 45° in backend)
+    const angle_raw = $("#ang").value; 
     const payload = { lat, lon, diameter_m, velocity_kms, density_kg_m3 };
     if (angle_raw !== "" && angle_raw !== null && angle_raw !== undefined) {
       const angle_deg = requireNumber(angle_raw, "Angle (°)");
@@ -141,7 +139,6 @@ function buildPayload() {
   }
 }
 
-// ---------- Simulation & UI ----------
 async function simulate() {
   try {
     const payload = buildPayload();
@@ -168,11 +165,10 @@ async function simulate() {
     if (Array.isArray(data.time_series) && data.time_series.length > 0) {
       const lat = Number($("#lat").value);
       const lon = Number($("#lng").value);
-      playTimeSeries(data.time_series, lat, lon, data.rings_m); // scaled anim
+      playTimeSeries(data.time_series, lat, lon, data.rings_m); 
     }
 
     $("#summaryHint").textContent = "Simulation complete. Adjust parameters and run again if needed.";
-    location.hash = "#paso-sim";
   } catch (e) {
     alert(e.message || e);
   }
@@ -210,7 +206,6 @@ function updateDetails(data, payload) {
   `;
 }
 
-// ---------- Canvas (summary view) ----------
 function getResultCanvas() {
   const canvas = $("#resultCanvas");
   const box = canvas.parentElement.getBoundingClientRect();
@@ -297,7 +292,6 @@ function enableGeoDownload(data) {
   };
 }
 
-// ---------- GeoJSON → Leaflet ----------
 function colorFor(feature) {
   const t = feature?.properties?.type || "";
   const psi = feature?.properties?.psi || "";
@@ -347,7 +341,6 @@ function drawGeoOnMap(fc) {
   } catch (_) {}
 }
 
-// ---------- Scaled time-series animation ----------
 let anim = { timer: null, layer: null, circleShock: null, circleCrater: null, i: 0 };
 
 function stopTimeSeries() {
@@ -367,9 +360,6 @@ function getOuterRingMeters(rings) {
   return Math.max(...vals);
 }
 
-// ts: [{time_sec, shockwave_radius_km, crater_diameter_km}, ...]
-// centerLat, centerLon: impact center
-// rings: { "1psi": m, "3psi": m, "5psi": m, "10psi": m }
 function playTimeSeries(ts, centerLat, centerLon, rings) {
   stopTimeSeries();
   if (!Array.isArray(ts) || ts.length === 0 || !state.map) return;
@@ -433,7 +423,10 @@ function bindUI() {
   $("#btnManual")?.addEventListener("click", () => setActiveTab("manual"));
   $("#btnId")?.addEventListener("click", () => setActiveTab("id"));
   $("#toMap")?.addEventListener("click", (e) => { e.preventDefault(); location.hash = "#paso-mapa"; });
-  $("#toSim")?.addEventListener("click", (e) => { e.preventDefault(); simulate(); });
+  $("#toSim")?.addEventListener("click", (e) => {
+    e.preventDefault();   // stay on the map (no scroll to #paso-sim)
+    simulate();
+  });
 
   $("#go")?.addEventListener("click", async () => {
     const q = ($("#city")?.value || "").trim();
