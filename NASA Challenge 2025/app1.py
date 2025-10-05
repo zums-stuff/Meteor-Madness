@@ -23,19 +23,26 @@ def us_elevation_m_or_none(lat: float, lon: float):
         r = requests.get(EPQS_URL, params=params, timeout=10)
         r.raise_for_status()
         data = r.json()
+
+        elevation_val = None
         if isinstance(data, dict):
-            if "USGS_Elevation_Point_Query_Service" in data:
-                svc = data["USGS_Elevation_Point_Query_Service"]
-                if isinstance(svc, dict) and "Elevation_Query" in svc:
-                    eq = svc["Elevation_Query"]
-                    if isinstance(eq, dict) and "Elevation" in eq:
-                        val = eq["Elevation"]
-                        if val not in (None, "NaN"):
-                            return float(val)
-            if "value" in data and isinstance(data["value"], (int, float)):
-                return float(data["value"])
-            if "elevation" in data and isinstance(data["elevation"], (int, float)):
-                return float(data["elevation"])
+            try:
+                elevation_val = data["USGS_Elevation_Point_Query_Service"]["Elevation_Query"]["Elevation"]
+            except (KeyError, TypeError):
+                elevation_val = data.get("value") or data.get("elevation")
+        
+        if elevation_val is None:
+            return None
+        
+        if isinstance(elevation_val, (int, float)) and elevation_val < -100000:
+            return None
+
+        try:
+            return float(elevation_val)
+        except (ValueError, TypeError):
+            return None
+
+    except requests.exceptions.RequestException:
         return None
     except Exception:
         return None
